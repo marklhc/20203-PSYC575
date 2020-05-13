@@ -135,9 +135,11 @@ texreg::texreg(m1,
                caption = "Summary of linear regression model.")
 ```
 
-Using the `apa_print()` function from the `papaja` package to extract the results, and use the `kable()` function from the `knitr` package. 
+To comment out text content, highlight the text, and press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>. 
 
-```{r kable-m1_tab}
+<!-- Using the `apa_print()` function from the `papaja` package to extract the results, and use the `kable()` function from the `knitr` package. -->
+
+```{r kable-m1_tab, eval=FALSE, include=FALSE}
 library(papaja)
 m1_tab <- apa_print(m1)$table
 knitr::kable(m1_tab,
