@@ -1,0 +1,149 @@
+---
+title: "Review of Multiple Regression"
+output:
+  html_notebook: default
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+## Introducing R Notebook/R Markdown
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+# Review of Multiple Regression
+
+## Load Packages
+
+```{r load-pkg}
+library(psych)  # for scatterplot matrix
+library(here)  # makes reading data more consistent
+library(ggplot2)  # for plotting; "gg" stands for grammar of graphics
+```
+
+
+## Import Data
+
+P.S. You can hide the output by adding `results='hide'`
+
+```{r salary_dat, results='hide'}
+# The `here()` function forces the use of the project directory
+here("data", "salary.txt")
+# Read in the data
+salary_dat <- read.table(here("data", "salary.txt"), header = TRUE)
+```
+
+Alternatively, from the menu, click `File` &rightarrow; `Import Dataset` &rightarrow; `From Text (base)...`, and select the file. 
+
+## Quick Scatterplot Matrix
+
+Import to screen your data before any statistical modeling
+
+P.S. You can hide the input by adding `echo=FALSE`
+
+```{r pairs-salary_dat, echo=FALSE}
+pairs.panels(salary_dat[ , -1],  # not plotting the first column
+             ellipses = FALSE)
+```
+
+## 1. Linear Regression of `salary` on `pub`
+
+### Visualize the data
+
+```{r p1}
+# Visualize the data
+p1 <- ggplot(salary_dat,  # specify data
+             # aesthetics: mapping variable to axes)
+             aes(x = pub, y = salary)) +  
+             # geom: geometric objects, such as points, lines, shapes, etc
+             geom_point()
+p1
+```
+
+```{r p1-smooth}
+# Add a smoother geom to visualize mean salary as a function of pub
+p1 + geom_smooth()
+```
+
+A little bit of non-linearity on the plot. Now fit the regression model
+
+### Linear regression
+
+You can type equations (with LaTeX; see a [quick reference](https://www.latex-tutorial.com/tutorials/amsmath/)). 
+
+$$salary_i = \beta_0 + \beta_1 pub_i + e$$
+
+```{r m1}
+# left hand side of ~ is outcome; right hand side contains predictors
+# salary ~ (beta_0) * 1 + (beta_1) * pub
+# remove beta_0 and beta_1 to get the formula
+m1 <- lm(salary ~ 1 + pub, data = salary_dat)
+# In R, the output is not printed out if it is saved to an object (e.g., m1). 
+# Summary:
+summary(m1)
+# Confidence intervals
+confint(m1)
+```
+
+### Visualize fitted regression line:
+
+```{r p1-fitted}
+p1 + 
+  # Non-parametric fit
+  geom_smooth(se = FALSE) + 
+  # Linear regression line (in red)
+  geom_smooth(method = "lm", col = "red")
+```
+
+### Tabulate
+
+Using the `texreg` package and the `screenreg` function
+
+P.S. There's also the `htmlreg()` (for HTML) and `texreg` (for PDF) functions
+
+```{r screenreg-m1, eval=FALSE, echo=FALSE}
+texreg::screenreg(m1, 
+                  # Add model names
+                  custom.model.names = "M1", 
+                  # Table caption
+                  caption = "Summary of linear regression model.")
+```
+
+```{r htmlreg-m1, eval=knitr::is_html_output(), results='asis'}
+texreg::htmlreg(m1, 
+                doctype = FALSE, 
+                custom.model.names = "M1", 
+                caption = "Summary of linear regression model.")
+```
+
+```{r texreg-m1, eval=knitr::is_latex_output(), results='asis'}
+texreg::texreg(m1, 
+               custom.model.names = "M1", 
+               caption = "Summary of linear regression model.")
+```
+
+Using the `apa_print()` function from the `papaja` package to extract the results, and use the `kable()` function from the `knitr` package. 
+
+```{r kable-m1_tab}
+library(papaja)
+m1_tab <- apa_print(m1)$table
+knitr::kable(m1_tab,
+             col.names = c("Predictor", "$\\hat \\beta$",
+                           "95\\% CI", "$t$", "$p$"))
+```
+
+
+
