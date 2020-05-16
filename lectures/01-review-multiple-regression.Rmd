@@ -1,11 +1,12 @@
 ---
 title: "Review of Multiple Regression"
 output:
-  html_notebook: default
-  pdf_document: default
-  word_document: default
+  html_notebook: 
+    toc: TRUE
   html_document:
     df_print: paged
+  word_document: default
+  pdf_document: default
 ---
 
 ## Introducing R Notebook/R Markdown
@@ -31,7 +32,9 @@ The preview shows you a rendered HTML copy of the contents of the editor. Conseq
 ```{r load-pkg}
 library(psych)  # for scatterplot matrix
 library(here)  # makes reading data more consistent
-library(ggplot2)  # for plotting; "gg" stands for grammar of graphics
+library(tidyverse)  # for data manipulation and plotting
+library(texreg)  # for quickly generating tables
+library(interactions)  # for plotting interactions
 ```
 
 
@@ -64,7 +67,7 @@ pairs.panels(salary_dat[ , -1],  # not plotting the first column
 ### Visualize the data
 
 ```{r p1}
-# Visualize the data
+# Visualize the data ("gg" stands for grammar of graphics)
 p1 <- ggplot(salary_dat,  # specify data
              # aesthetics: mapping variable to axes)
              aes(x = pub, y = salary)) +  
@@ -84,7 +87,11 @@ A little bit of non-linearity on the plot. Now fit the regression model
 
 You can type equations (with LaTeX; see a [quick reference](https://www.latex-tutorial.com/tutorials/amsmath/)). 
 
-$$salary_i = \beta_0 + \beta_1 pub_i + e$$
+P.S. Use `\text{}` to specify variable names
+
+P.S. Pay attention to the subscripts
+
+$$\text{salary}_i = \beta_0 + \beta_1 \text{pub}_i + e_i$$
 
 ```{r m1}
 # left hand side of ~ is outcome; right hand side contains predictors
@@ -115,24 +122,24 @@ Using the `texreg` package and the `screenreg` function
 P.S. There's also the `htmlreg()` (for HTML) and `texreg` (for PDF) functions
 
 ```{r screenreg-m1, eval=FALSE, echo=FALSE}
-texreg::screenreg(m1, 
-                  # Add model names
-                  custom.model.names = "M1", 
-                  # Table caption
-                  caption = "Summary of linear regression model.")
+screenreg(m1, 
+          # Add model names
+          custom.model.names = "M1", 
+          # Table caption
+          caption = "Summary of linear regression model.")
 ```
 
 ```{r htmlreg-m1, eval=knitr::is_html_output(), results='asis'}
-texreg::htmlreg(m1, 
-                doctype = FALSE, 
-                custom.model.names = "M1", 
-                caption = "Summary of linear regression model.")
+htmlreg(m1, 
+        doctype = FALSE, 
+        custom.model.names = "M1", 
+        caption = "Summary of linear regression model.")
 ```
 
 ```{r texreg-m1, eval=knitr::is_latex_output(), results='asis'}
-texreg::texreg(m1, 
-               custom.model.names = "M1", 
-               caption = "Summary of linear regression model.")
+texreg(m1, 
+       custom.model.names = "M1", 
+       caption = "Summary of linear regression model.")
 ```
 
 To comment out text content, highlight the text, and press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>. 
@@ -147,5 +154,117 @@ knitr::kable(m1_tab,
                            "95\\% CI", "$t$", "$p$"))
 ```
 
+### Centering
 
+$$\text{salary}_i = \beta_0 + \beta_1 \text{pub}^c_i + e_i$$
+
+```{r m1c}
+# Using pipe operator
+salary_dat <- salary_dat %>% 
+  mutate(pub_c = pub - mean(pub))
+# Equivalent to:
+# salary_dat <- mutate(salary_dat, 
+#                      pub_c = pub - mean(pub))
+m1c <- lm(salary ~ pub_c, data = salary_dat)
+summary(m1c)
+```
+
+```{r tab-m1-m1c}
+# The only change is the intercept coefficient
+screenreg(list(m1, m1c))
+```
+
+```{r p1-center}
+p1 + 
+  geom_smooth(method = "lm", col = "red") + 
+  # Intercept without centering
+  geom_vline(aes(col = "Not centered", xintercept = 0)) + 
+  # Intercept with centering
+  geom_vline(aes(col = "Centered", xintercept = mean(salary_dat$pub))) + 
+  labs(col = "")
+```
+
+## 2. Categorical Predictor 
+
+Recode as `factor` variable in R
+
+```{r recode-sex}
+salary_dat <- salary_dat %>% 
+  mutate(sex = factor(sex, levels = c(0, 1), 
+                      labels = c("male", "female")))
+```
+
+$$\text{salary}_i = \beta_0 + \beta_1 \text{sex}_i + e_i$$
+
+```{r p2}
+(p2 <- ggplot(salary_dat, aes(x = sex, y = salary)) + 
+    geom_boxplot() + 
+    geom_jitter(height = 0, width = 0.1))  # move the points to left/right a bit
+```
+
+```{r m2}
+m2 <- lm(salary ~ sex, data = salary_dat)
+summary(m2)
+```
+
+The `(Intercept)` coefficient is for the '0' category, i.e., predicted salary for males; the `female` coefficient is the difference between males and females.
+
+Predicted female salary = 56515 + (-3902) = 52613.
+
+### Equivalence to $t$-test
+
+When assuming homogeneity of variance
+
+```{r t-test}
+t.test(salary ~ sex, data = salary_dat, var.equal = TRUE)
+```
+
+## 3. Multiple Predictors (Multiple Regression)
+
+$$\text{salary}_i = \beta_0 + \beta_1 \text{pub}^c_i + \beta_2 \text{time}_i + e_i$$
+
+```{r p3}
+ggplot(salary_dat, aes(x = time, y = salary)) + 
+  geom_point() + 
+  geom_smooth()
+```
+
+```{r m3}
+m3 <- lm(salary ~ pub_c + time, data = salary_dat)
+summary(m3)  # summary
+confint(m3)  # confidence interval
+par(mfrow = c(2, 2))  # put all plots in the same graph
+plot(m3)  # diagnostic plots
+car::mmps(m3)  # marginal model plots
+```
+
+## 4. Interaction
+
+For interpretation purposes, it's recommended to center the predictors (at least the continuous ones)
+
+$$\text{salary}_i = \beta_0 + \beta_1 \text{pub}^c_i + \beta_2 \text{time}^c_i + \beta_3 (\text{time}^c_i)(\text{sex}^c_i) + e_i$$
+
+```{r m4}
+salary_dat <- salary_dat %>% 
+  mutate(time_c = time - mean(time))
+# Fit the model with interactions:
+m4 <- lm(salary ~ pub_c * time_c, data = salary_dat)
+summary(m4)  # summary
+```
+
+### Interaction Plots
+
+```{r}
+interactions::interact_plot(m4,
+                            pred = "pub_c",
+                            modx = "time_c",
+                            plot.points = TRUE)
+```
+
+## 5. Tabulate the Regression Results
+
+```{r tab-m1-m4}
+screenreg(list(m1, m2, m3, m4), 
+          custom.model.names = c("M1", "M2", "M3", "M3 + Interaction"))
+```
 
